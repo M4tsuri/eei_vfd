@@ -25,91 +25,87 @@ use self::command::Command;
 pub use self::graphics::Display256x50;
 
 /// vfd1in02 driver
-pub struct VFD256x50<SPI, CS, RST, DELAY> {
-    interface: DisplayInterface<SPI, CS, RST, DELAY>,
+pub struct VFD256x50<SPI, RST, DELAY> {
+    interface: DisplayInterface<SPI, RST, DELAY>,
 }
 
-impl<SPI, CS, RST, DELAY> EEIInit<SPI, CS, RST, DELAY> for VFD256x50<SPI, CS, RST, DELAY>
+impl<SPI, RST, DELAY> EEIInit<SPI, RST, DELAY> for VFD256x50<SPI, RST, DELAY>
 where
     SPI: SpiDevice,
-    CS: OutputPin,
     RST: OutputPin,
     DELAY: DelayNs,
 {
-    fn init(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn init(&mut self, delay: &mut DELAY) -> Result<(), SPI::Error> {
         // Based on the spec (not public accessible)
         self.interface.reset(delay, 1);
 
         // software reset
-        self.command(spi, Command::Reset)?;
+        self.command(Command::Reset)?;
 
         // set VFD mode
-        self.cmd_with_args(spi, Command::VFDModeSetting, [0x02, 0x00])?;
+        self.cmd_with_args(Command::VFDModeSetting, &[0x02, 0x00])?;
 
         // set display area
         self.cmd_with_args(
-            spi,
             Command::DisplayAreaSetting,
-            [0xFF, 0x31, 0x00, 0x20, 0x00, 0x00, 0x80],
+            &[0xFF, 0x31, 0x00, 0x20, 0x00, 0x00, 0x80],
         )?;
 
         // set internal speed
-        self.cmd_with_args(spi, Command::InternalSpeedSetting, [0x20, 0x3F, 0x00, 0x01])?;
+        self.cmd_with_args(Command::InternalSpeedSetting, &[0x20, 0x3F, 0x00, 0x01])?;
 
         // set brightness
-        self.set_brightness(spi, 0x30)?;
+        self.set_brightness(0x30)?;
 
         // clear gram
-        self.command(spi, Command::ClearGRAM)?;
+        self.command(Command::ClearGRAM)?;
         delay.delay_ms(10);
 
         // offset: no offset
-        self.cmd_with_args(spi, Command::DisplayPosition1Offset, [0x00, 0x04])?;
-        self.cmd_with_args(spi, Command::DisplayPosition2Offset, [0x00, 0x3c])?;
+        self.cmd_with_args(Command::DisplayPosition1Offset, &[0x00, 0x04])?;
+        self.cmd_with_args(Command::DisplayPosition2Offset, &[0x00, 0x3c])?;
 
         // unknown
-        self.cmd_with_args(spi, Command::UnknownInit, [0x00])?;
+        self.cmd_with_args(Command::UnknownInit, &[0x00])?;
 
         // set display mode
-        self.cmd_with_args(spi, Command::DisplayModeSetting, [0x00])?;
+        self.cmd_with_args(Command::DisplayModeSetting, &[0x00])?;
 
         // set frame sync
-        self.cmd_with_args(spi, Command::FrameSyncSetting, [0x00])
+        self.cmd_with_args(Command::FrameSyncSetting, &[0x00])
     }
 }
 
-impl<SPI, CS, RST, DELAY> EEIDisplay<SPI, CS, RST, DELAY> for VFD256x50<SPI, CS, RST, DELAY>
+impl<SPI, RST, DELAY> EEIDisplay<SPI, RST, DELAY> for VFD256x50<SPI, RST, DELAY>
 where
     SPI: SpiDevice,
-    CS: OutputPin,
     RST: OutputPin,
     DELAY: DelayNs,
 {
     type DisplayColor = Color;
-    fn new(spi: &mut SPI, cs: CS, rst: RST, delay: &mut DELAY) -> Result<Self, SPI::Error> {
-        let interface = DisplayInterface::new(cs, rst);
+    fn new(spi: SPI, rst: RST, delay: &mut DELAY) -> Result<Self, SPI::Error> {
+        let interface = DisplayInterface::new(spi, rst);
 
         let mut vfd = VFD256x50 { interface };
 
-        vfd.init(spi, delay)?;
+        vfd.init(delay)?;
 
         Ok(vfd)
     }
 
-    fn set_brightness(&mut self, spi: &mut SPI, val: u32) -> Result<(), SPI::Error> {
+    fn set_brightness(&mut self, val: u32) -> Result<(), SPI::Error> {
         self.cmd_with_args(
-            spi,
             Command::BrightnessSetting,
-            [((val >> 8) as u8) & 0b11, val as u8],
+            &[((val >> 8) as u8) & 0b11, val as u8],
         )
     }
 
-    fn sleep(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), SPI::Error> {
-        self.command(spi, Command::Sleep)
+    fn sleep(&mut self, _delay: &mut DELAY) -> Result<(), SPI::Error> {
+        self.command(Command::Sleep)
     }
 
-    fn wake_up(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), SPI::Error> {
-        self.command(spi, Command::WakeUp)
+    fn wake_up(&mut self, _delay: &mut DELAY) -> Result<(), SPI::Error> {
+        self.command(Command::WakeUp)
     }
 
     fn width(&self) -> u32 {
@@ -120,24 +116,13 @@ where
         HEIGHT
     }
 
-    fn update_frame(
-        &mut self,
-        spi: &mut SPI,
-        buffer: &[u8],
-        _delay: &mut DELAY,
-    ) -> Result<(), SPI::Error> {
-        self.cmd_with_data(
-            spi,
-            Command::WriteGRAM,
-            [0x00, 0x04, 0x37],
-            buffer.iter().copied(),
-        )
+    fn update_frame(&mut self, buffer: &[u8], _delay: &mut DELAY) -> Result<(), SPI::Error> {
+        self.cmd_with_data(Command::WriteGRAM, &[0x00, 0x04, 0x37], buffer)
     }
 
     #[allow(unused)]
     fn update_partial_frame(
         &mut self,
-        spi: &mut SPI,
         buffer: &[u8],
         x: u32,
         y: u32,
@@ -147,41 +132,34 @@ where
         unimplemented!()
     }
 
-    fn clear_frame(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn clear_frame(&mut self, delay: &mut DELAY) -> Result<(), SPI::Error> {
         // Clear the black
-        self.command(spi, Command::ClearGRAM)?;
+        self.command(Command::ClearGRAM)?;
         delay.delay_ms(10);
         Ok(())
     }
 }
 
-impl<SPI, CS, RST, DELAY> VFD256x50<SPI, CS, RST, DELAY>
+impl<SPI, RST, DELAY> VFD256x50<SPI, RST, DELAY>
 where
     SPI: SpiDevice,
-    CS: OutputPin,
     RST: OutputPin,
     DELAY: DelayNs,
 {
-    fn command(&mut self, spi: &mut SPI, command: Command) -> Result<(), SPI::Error> {
-        self.cmd_with_args(spi, command, [])
+    fn command(&mut self, command: Command) -> Result<(), SPI::Error> {
+        self.cmd_with_args(command, &[])
     }
 
-    fn cmd_with_args(
-        &mut self,
-        spi: &mut SPI,
-        command: Command,
-        args: impl IntoIterator<Item = u8>,
-    ) -> Result<(), SPI::Error> {
-        self.interface.cmd_with_arg(spi, command, args)
+    fn cmd_with_args(&mut self, command: Command, args: &[u8]) -> Result<(), SPI::Error> {
+        self.interface.cmd_with_arg(command, args)
     }
 
     fn cmd_with_data(
         &mut self,
-        spi: &mut SPI,
         command: Command,
-        args: impl IntoIterator<Item = u8>,
-        data: impl IntoIterator<Item = u8>,
+        args: &[u8],
+        data: &[u8],
     ) -> Result<(), SPI::Error> {
-        self.interface.cmd_with_data(spi, command, args, data)
+        self.interface.cmd_with_data(command, args, data)
     }
 }

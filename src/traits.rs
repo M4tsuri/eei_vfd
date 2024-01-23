@@ -7,10 +7,9 @@ pub(crate) trait Command {
     fn address(self) -> u8;
 }
 
-pub(crate) trait EEIInit<SPI, CS, RST, DELAY>
+pub(crate) trait EEIInit<SPI, RST, DELAY>
 where
     SPI: SpiDevice,
-    CS: OutputPin,
     RST: OutputPin,
     DELAY: DelayNs,
 {
@@ -24,14 +23,13 @@ where
     /// This function calls [reset](EEIDisplay::reset),
     /// so you don't need to call reset your self when trying to wake your device up
     /// after setting it to sleep.
-    fn init(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), SPI::Error>;
+    fn init(&mut self, delay: &mut DELAY) -> Result<(), SPI::Error>;
 }
 
 /// All the functions to interact with the EEI VFDs
-pub trait EEIDisplay<SPI, CS, RST, DELAY>
+pub trait EEIDisplay<SPI, RST, DELAY>
 where
     SPI: SpiDevice,
-    CS: OutputPin,
     RST: OutputPin,
     DELAY: DelayNs,
 {
@@ -40,19 +38,19 @@ where
     /// Creates a new driver from a SPI peripheral, CS Pin, Busy InputPin, DC
     ///
     /// This already initialises the device.
-    fn new(spi: &mut SPI, cs: CS, rst: RST, delay: &mut DELAY) -> Result<Self, SPI::Error>
+    fn new(spi: SPI, rst: RST, delay: &mut DELAY) -> Result<Self, SPI::Error>
     where
         Self: Sized;
 
     /// Let the device enter deep-sleep mode to save power.
     ///
     /// The deep sleep mode returns to standby with a hardware reset.
-    fn sleep(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), SPI::Error>;
+    fn sleep(&mut self, delay: &mut DELAY) -> Result<(), SPI::Error>;
 
     /// Wakes the device up from sleep
     ///
     /// Also reintialises the device if necessary.
-    fn wake_up(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), SPI::Error>;
+    fn wake_up(&mut self, delay: &mut DELAY) -> Result<(), SPI::Error>;
 
     /// Get the width of the display
     fn width(&self) -> u32;
@@ -61,15 +59,10 @@ where
     fn height(&self) -> u32;
 
     /// set brightness of screen
-    fn set_brightness(&mut self, spi: &mut SPI, val: u32) -> Result<(), SPI::Error>;
+    fn set_brightness(&mut self, val: u32) -> Result<(), SPI::Error>;
 
     /// Transmit a full frame to the SRAM of the EPD
-    fn update_frame(
-        &mut self,
-        spi: &mut SPI,
-        buffer: &[u8],
-        delay: &mut DELAY,
-    ) -> Result<(), SPI::Error>;
+    fn update_frame(&mut self, buffer: &[u8], delay: &mut DELAY) -> Result<(), SPI::Error>;
 
     /// Transmits partial data to the SRAM of the EPD
     ///
@@ -78,7 +71,6 @@ where
     /// BUFFER needs to be of size: width / 8 * height !
     fn update_partial_frame(
         &mut self,
-        spi: &mut SPI,
         buffer: &[u8],
         x: u32,
         y: u32,
@@ -88,5 +80,5 @@ where
 
     /// Clears the frame buffer on the VFD with the declared background color
     ///
-    fn clear_frame(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), SPI::Error>;
+    fn clear_frame(&mut self, delay: &mut DELAY) -> Result<(), SPI::Error>;
 }
