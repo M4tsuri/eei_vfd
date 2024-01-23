@@ -1,8 +1,5 @@
 use core::marker::Sized;
-use embedded_hal::{
-    blocking::{delay::*, spi::Write},
-    digital::v2::*,
-};
+use embedded_hal::{delay::DelayNs, digital::*, spi::SpiDevice};
 
 /// All commands need to have this trait which gives the address of the command
 /// which needs to be send via SPI with activated CommandsPin (Data/Command Pin in CommandMode)
@@ -12,10 +9,10 @@ pub(crate) trait Command {
 
 pub(crate) trait EEIInit<SPI, CS, RST, DELAY>
 where
-    SPI: Write<u8>,
+    SPI: SpiDevice,
     CS: OutputPin,
     RST: OutputPin,
-    DELAY: DelayMs<u8>,
+    DELAY: DelayNs,
 {
     /// This initialises the display and powers it up
     ///
@@ -33,22 +30,17 @@ where
 /// All the functions to interact with the EEI VFDs
 pub trait EEIDisplay<SPI, CS, RST, DELAY>
 where
-    SPI: Write<u8>,
+    SPI: SpiDevice,
     CS: OutputPin,
     RST: OutputPin,
-    DELAY: DelayMs<u8>,
+    DELAY: DelayNs,
 {
     /// The Color Type used by the Display
     type DisplayColor;
     /// Creates a new driver from a SPI peripheral, CS Pin, Busy InputPin, DC
     ///
     /// This already initialises the device.
-    fn new(
-        spi: &mut SPI,
-        cs: CS,
-        rst: RST,
-        delay: &mut DELAY,
-    ) -> Result<Self, SPI::Error>
+    fn new(spi: &mut SPI, cs: CS, rst: RST, delay: &mut DELAY) -> Result<Self, SPI::Error>
     where
         Self: Sized;
 

@@ -1,14 +1,9 @@
 //! A simple Driver for the gp1287bi display for SPI
 
-use embedded_hal::{
-    blocking::{delay::*, spi::Write},
-    digital::v2::*,
-};
+use embedded_hal::{delay::DelayNs, digital::*, spi::SpiDevice};
 
 use crate::interface::DisplayInterface;
-use crate::traits::{
-    EEIInit, EEIDisplay,
-};
+use crate::traits::{EEIDisplay, EEIInit};
 
 /// Width of gp1287bi in pixels
 pub const WIDTH: u32 = 56;
@@ -31,16 +26,15 @@ pub use self::graphics::Display256x50;
 
 /// vfd1in02 driver
 pub struct VFD256x50<SPI, CS, RST, DELAY> {
-    interface: DisplayInterface<SPI, CS,RST, DELAY>
+    interface: DisplayInterface<SPI, CS, RST, DELAY>,
 }
 
-impl<SPI, CS, RST, DELAY> EEIInit<SPI, CS, RST, DELAY>
-    for VFD256x50<SPI, CS, RST, DELAY>
+impl<SPI, CS, RST, DELAY> EEIInit<SPI, CS, RST, DELAY> for VFD256x50<SPI, CS, RST, DELAY>
 where
-    SPI: Write<u8>,
+    SPI: SpiDevice,
     CS: OutputPin,
     RST: OutputPin,
-    DELAY: DelayMs<u8>,
+    DELAY: DelayNs,
 {
     fn init(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), SPI::Error> {
         // Based on the spec (not public accessible)
@@ -54,15 +48,13 @@ where
 
         // set display area
         self.cmd_with_args(
-            spi, Command::DisplayAreaSetting, 
-            [0xFF, 0x31, 0x00, 0x20, 0x00, 0x00, 0x80]
+            spi,
+            Command::DisplayAreaSetting,
+            [0xFF, 0x31, 0x00, 0x20, 0x00, 0x00, 0x80],
         )?;
 
         // set internal speed
-        self.cmd_with_args(
-            spi, Command::InternalSpeedSetting, 
-            [0x20, 0x3F, 0x00, 0x01]
-        )?;
+        self.cmd_with_args(spi, Command::InternalSpeedSetting, [0x20, 0x3F, 0x00, 0x01])?;
 
         // set brightness
         self.set_brightness(spi, 0x30)?;
@@ -72,14 +64,8 @@ where
         delay.delay_ms(10);
 
         // offset: no offset
-        self.cmd_with_args(
-            spi, Command::DisplayPosition1Offset, 
-            [0x00, 0x04]
-        )?;
-        self.cmd_with_args(
-            spi, Command::DisplayPosition2Offset, 
-            [0x00, 0x3c]
-        )?;
+        self.cmd_with_args(spi, Command::DisplayPosition1Offset, [0x00, 0x04])?;
+        self.cmd_with_args(spi, Command::DisplayPosition2Offset, [0x00, 0x3c])?;
 
         // unknown
         self.cmd_with_args(spi, Command::UnknownInit, [0x00])?;
@@ -92,21 +78,15 @@ where
     }
 }
 
-impl<SPI, CS, RST, DELAY> EEIDisplay<SPI, CS, RST, DELAY>
-    for VFD256x50<SPI, CS, RST, DELAY>
+impl<SPI, CS, RST, DELAY> EEIDisplay<SPI, CS, RST, DELAY> for VFD256x50<SPI, CS, RST, DELAY>
 where
-    SPI: Write<u8>,
+    SPI: SpiDevice,
     CS: OutputPin,
     RST: OutputPin,
-    DELAY: DelayMs<u8>,
+    DELAY: DelayNs,
 {
     type DisplayColor = Color;
-    fn new(
-        spi: &mut SPI,
-        cs: CS,
-        rst: RST,
-        delay: &mut DELAY,
-    ) -> Result<Self, SPI::Error> {
+    fn new(spi: &mut SPI, cs: CS, rst: RST, delay: &mut DELAY) -> Result<Self, SPI::Error> {
         let interface = DisplayInterface::new(cs, rst);
 
         let mut vfd = VFD256x50 { interface };
@@ -118,8 +98,9 @@ where
 
     fn set_brightness(&mut self, spi: &mut SPI, val: u32) -> Result<(), SPI::Error> {
         self.cmd_with_args(
-            spi, Command::BrightnessSetting, 
-            [((val >> 8) as u8) & 0b11, val as u8]
+            spi,
+            Command::BrightnessSetting,
+            [((val >> 8) as u8) & 0b11, val as u8],
         )
     }
 
@@ -146,10 +127,10 @@ where
         _delay: &mut DELAY,
     ) -> Result<(), SPI::Error> {
         self.cmd_with_data(
-            spi, 
-            Command::WriteGRAM, 
-            [0x00, 0x04, 0x37], 
-            buffer.iter().copied()
+            spi,
+            Command::WriteGRAM,
+            [0x00, 0x04, 0x37],
+            buffer.iter().copied(),
         )
     }
 
@@ -176,10 +157,10 @@ where
 
 impl<SPI, CS, RST, DELAY> VFD256x50<SPI, CS, RST, DELAY>
 where
-    SPI: Write<u8>,
+    SPI: SpiDevice,
     CS: OutputPin,
     RST: OutputPin,
-    DELAY: DelayMs<u8>,
+    DELAY: DelayNs,
 {
     fn command(&mut self, spi: &mut SPI, command: Command) -> Result<(), SPI::Error> {
         self.cmd_with_args(spi, command, [])

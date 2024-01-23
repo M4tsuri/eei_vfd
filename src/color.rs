@@ -1,9 +1,9 @@
 //! B/W Color for EPDs
 
-use embedded_graphics_core::pixelcolor::raw::{RawU8, RawData};
-use embedded_graphics_core::prelude::PixelColor;
+use embedded_graphics_core::pixelcolor::raw::{RawData, RawU8};
 #[cfg(feature = "graphics")]
 use embedded_graphics_core::pixelcolor::BinaryColor;
+use embedded_graphics_core::prelude::PixelColor;
 
 #[cfg(feature = "graphics")]
 pub use BinaryColor::Off as White;

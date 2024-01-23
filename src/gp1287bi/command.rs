@@ -22,7 +22,7 @@ pub(crate) enum Command {
     OscillationSetting = 0b0111_1000,
     UnknownInit = 0x90,
     WakeUp = 0b0110_1101,
-    Sleep = 0b0110_0001
+    Sleep = 0b0110_0001,
 }
 
 impl traits::Command for Command {

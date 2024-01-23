@@ -1,9 +1,6 @@
 use crate::traits::Command;
 use core::marker::PhantomData;
-use embedded_hal::{
-    blocking::{delay::*, spi::Write},
-    digital::v2::*,
-};
+use embedded_hal::{delay::DelayNs, digital::*, spi::SpiDevice};
 
 /// The Connection Interface of all (?) EEI VFD
 ///
@@ -20,15 +17,15 @@ pub(crate) struct DisplayInterface<SPI, CS, RST, DELAY> {
 
 impl<SPI, CS, RST, DELAY> DisplayInterface<SPI, CS, RST, DELAY>
 where
-    SPI: Write<u8>,
+    SPI: SpiDevice,
     CS: OutputPin,
     RST: OutputPin,
-    DELAY: DelayMs<u8>,
+    DELAY: DelayNs,
 {
     pub fn new(cs: CS, rst: RST) -> Self {
         DisplayInterface {
-            _spi: PhantomData::default(),
-            _delay: PhantomData::default(),
+            _spi: PhantomData,
+            _delay: PhantomData,
             cs,
             rst,
         }
@@ -45,23 +42,20 @@ where
     /// Basic function for sending an array of u8-values of data over spi
     ///
     pub(crate) fn args(
-        &mut self, 
-        spi: &mut SPI, 
-        args: impl IntoIterator<Item = u8>
+        &mut self,
+        spi: &mut SPI,
+        args: impl IntoIterator<Item = u8>,
     ) -> Result<(), SPI::Error> {
-        args.into_iter().try_for_each(|val| {
-            self.write(spi, &[val.reverse_bits()])
-        })
+        args.into_iter()
+            .try_for_each(|val| self.write(spi, &[val.reverse_bits()]))
     }
 
     pub(crate) fn data(
-        &mut self, 
-        spi: &mut SPI, 
-        data: impl IntoIterator<Item = u8>
+        &mut self,
+        spi: &mut SPI,
+        data: impl IntoIterator<Item = u8>,
     ) -> Result<(), SPI::Error> {
-        data.into_iter().try_for_each(|val| {
-            self.write(spi, &[val])
-        })
+        data.into_iter().try_for_each(|val| self.write(spi, &[val]))
     }
 
     /// Basic function for sending [Commands](Command) and the data belonging to it.
@@ -152,7 +146,7 @@ where
     /// The timing of keeping the reset pin low seems to be important and different per device.
     /// Most displays seem to require keeping it low for 10ms, but the 7in5_v2 only seems to reset
     /// properly with 2ms
-    pub(crate) fn reset(&mut self, delay: &mut DELAY, duration: u8) {
+    pub(crate) fn reset(&mut self, delay: &mut DELAY, duration: u32) {
         let _ = self.rst.set_low();
         delay.delay_ms(duration);
         let _ = self.rst.set_high();

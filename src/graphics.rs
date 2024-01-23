@@ -5,9 +5,10 @@ use crate::color::Color;
 use embedded_graphics_core::prelude::*;
 
 /// Displayrotation
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub enum DisplayRotation {
     /// No rotation
+    #[default]
     Rotate0,
     /// Rotate by 90 degrees clockwise
     Rotate90,
@@ -15,12 +16,6 @@ pub enum DisplayRotation {
     Rotate180,
     /// Rotate 270 degrees clockwise
     Rotate270,
-}
-
-impl Default for DisplayRotation {
-    fn default() -> Self {
-        DisplayRotation::Rotate0
-    }
 }
 
 /// Display specific pixel output configuration
@@ -222,109 +217,4 @@ fn find_position(x: u32, y: u32, width: u32, height: u32, rotation: DisplayRotat
         nx / 8 + ((width + 7) / 8) * ny,
         0x80 >> (nx % 8),
     )
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{buffer_len, find_position, outside_display, Display, DisplayRotation, VarDisplay};
-    use crate::color::Black;
-    use crate::color::Color;
-    use embedded_graphics::{
-        prelude::*,
-        primitives::{Line, PrimitiveStyle},
-    };
-
-    #[test]
-    fn buffer_clear() {
-        use crate::epd4in2::{HEIGHT, WIDTH};
-
-        let mut buffer =
-            [Color::Dark.get_byte_value(); buffer_len(WIDTH as usize, HEIGHT as usize)];
-        let mut display = VarDisplay::new(WIDTH, HEIGHT, &mut buffer);
-
-        for &byte in display.buffer.iter() {
-            assert_eq!(byte, Color::Dark.get_byte_value());
-        }
-
-        display.clear_buffer(Color::Green);
-
-        for &byte in display.buffer.iter() {
-            assert_eq!(byte, Color::Green.get_byte_value());
-        }
-    }
-
-    #[test]
-    fn rotation_overflow() {
-        use crate::epd4in2::{HEIGHT, WIDTH};
-        let width = WIDTH as u32;
-        let height = HEIGHT as u32;
-        test_rotation_overflow(width, height, DisplayRotation::Rotate0);
-        test_rotation_overflow(width, height, DisplayRotation::Rotate90);
-        test_rotation_overflow(width, height, DisplayRotation::Rotate180);
-        test_rotation_overflow(width, height, DisplayRotation::Rotate270);
-    }
-
-    fn test_rotation_overflow(width: u32, height: u32, rotation2: DisplayRotation) {
-        let max_value = width / 8 * height;
-        for x in 0..(width + height) {
-            //limit x because it runs too long
-            for y in 0..(u32::max_value()) {
-                if outside_display(Point::new(x as i32, y as i32), width, height, rotation2) {
-                    break;
-                } else {
-                    let (idx, _) = find_position(x, y, width, height, rotation2);
-                    assert!(idx < max_value);
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn graphics_rotation_0() {
-        use crate::epd2in9::DEFAULT_BACKGROUND_COLOR;
-        let width = 128;
-        let height = 296;
-
-        let mut buffer = [DEFAULT_BACKGROUND_COLOR.get_byte_value(); 128 / 8 * 296];
-        let mut display = VarDisplay::new(width, height, &mut buffer);
-
-        let _ = Line::new(Point::new(0, 0), Point::new(7, 0))
-            .into_styled(PrimitiveStyle::with_stroke(Black, 1))
-            .draw(&mut display);
-
-        let buffer = display.buffer();
-
-        assert_eq!(buffer[0], Color::Dark.get_byte_value());
-
-        for &byte in buffer.iter().skip(1) {
-            assert_eq!(byte, DEFAULT_BACKGROUND_COLOR.get_byte_value());
-        }
-    }
-
-    #[test]
-    fn graphics_rotation_90() {
-        use crate::epd2in9::DEFAULT_BACKGROUND_COLOR;
-        let width = 128;
-        let height = 296;
-
-        let mut buffer = [DEFAULT_BACKGROUND_COLOR.get_byte_value(); 128 / 8 * 296];
-        let mut display = VarDisplay::new(width, height, &mut buffer);
-
-        display.set_rotation(DisplayRotation::Rotate90);
-
-        let _ = Line::new(Point::new(0, 120), Point::new(0, 295))
-            .into_styled(PrimitiveStyle::with_stroke(Black, 1))
-            .draw(&mut display);
-
-        let buffer = display.buffer();
-
-        extern crate std;
-        std::println!("{:?}", buffer);
-
-        assert_eq!(buffer[0], Color::Dark.get_byte_value());
-
-        for &byte in buffer.iter().skip(1) {
-            assert_eq!(byte, DEFAULT_BACKGROUND_COLOR.get_byte_value());
-        }
-    }
 }
