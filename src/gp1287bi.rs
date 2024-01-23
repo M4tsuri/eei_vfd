@@ -35,9 +35,9 @@ where
     RST: OutputPin,
     DELAY: DelayNs,
 {
-    fn init(&mut self, delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn init(&mut self) -> Result<(), SPI::Error> {
         // Based on the spec (not public accessible)
-        self.interface.reset(delay, 1);
+        self.interface.reset(1);
 
         // software reset
         self.command(Command::Reset)?;
@@ -59,7 +59,7 @@ where
 
         // clear gram
         self.command(Command::ClearGRAM)?;
-        delay.delay_ms(10);
+        self.interface.delay.delay_ms(10);
 
         // offset: no offset
         self.cmd_with_args(Command::DisplayPosition1Offset, &[0x00, 0x04])?;
@@ -83,12 +83,12 @@ where
     DELAY: DelayNs,
 {
     type DisplayColor = Color;
-    fn new(spi: SPI, rst: RST, delay: &mut DELAY) -> Result<Self, SPI::Error> {
-        let interface = DisplayInterface::new(spi, rst);
+    fn new(spi: SPI, rst: RST, delay: DELAY) -> Result<Self, SPI::Error> {
+        let interface = DisplayInterface::new(spi, rst, delay);
 
         let mut vfd = VFD256x50 { interface };
 
-        vfd.init(delay)?;
+        vfd.init()?;
 
         Ok(vfd)
     }
@@ -100,11 +100,11 @@ where
         )
     }
 
-    fn sleep(&mut self, _delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn sleep(&mut self) -> Result<(), SPI::Error> {
         self.command(Command::Sleep)
     }
 
-    fn wake_up(&mut self, _delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn wake_up(&mut self) -> Result<(), SPI::Error> {
         self.command(Command::WakeUp)
     }
 
@@ -116,7 +116,7 @@ where
         HEIGHT
     }
 
-    fn update_frame(&mut self, buffer: &[u8], _delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn update_frame(&mut self, buffer: &[u8]) -> Result<(), SPI::Error> {
         self.cmd_with_data(Command::WriteGRAM, &[0x00, 0x04, 0x37], buffer)
     }
 
@@ -132,10 +132,10 @@ where
         unimplemented!()
     }
 
-    fn clear_frame(&mut self, delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn clear_frame(&mut self) -> Result<(), SPI::Error> {
         // Clear the black
         self.command(Command::ClearGRAM)?;
-        delay.delay_ms(10);
+        self.interface.delay.delay_ms(10);
         Ok(())
     }
 }

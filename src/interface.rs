@@ -1,5 +1,4 @@
 use crate::traits::Command;
-use core::marker::PhantomData;
 use embedded_hal::{delay::DelayNs, digital::*, spi::Operation, spi::SpiDevice};
 
 /// The Connection Interface of all (?) EEI VFD
@@ -8,7 +7,7 @@ pub(crate) struct DisplayInterface<SPI, RST, DELAY> {
     /// SPI
     spi: SPI,
     /// DELAY
-    _delay: PhantomData<DELAY>,
+    pub(crate) delay: DELAY,
     /// Pin for Resetting
     rst: RST,
 }
@@ -19,10 +18,10 @@ where
     RST: OutputPin,
     DELAY: DelayNs,
 {
-    pub fn new(spi: SPI, rst: RST) -> Self {
+    pub fn new(spi: SPI, rst: RST, delay: DELAY) -> Self {
         DisplayInterface {
             spi,
-            _delay: PhantomData,
+            delay,
             rst,
         }
     }
@@ -77,10 +76,10 @@ where
     /// The timing of keeping the reset pin low seems to be important and different per device.
     /// Most displays seem to require keeping it low for 10ms, but the 7in5_v2 only seems to reset
     /// properly with 2ms
-    pub(crate) fn reset(&mut self, delay: &mut DELAY, duration: u32) {
+    pub(crate) fn reset(&mut self, duration: u32) {
         let _ = self.rst.set_low();
-        delay.delay_ms(duration);
+        self.delay.delay_ms(duration);
         let _ = self.rst.set_high();
-        delay.delay_ms(1)
+        self.delay.delay_ms(1)
     }
 }
