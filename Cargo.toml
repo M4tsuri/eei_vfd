@@ -22,7 +22,7 @@ embedded-graphics = "0.8.0"
 embedded-hal-mock = "0.8"
 
 [target.'cfg(unix)'.dev-dependencies]
-linux-embedded-hal = "0.3"
+linux-embedded-hal = "0.4"
 
 [features]
 # Remove the linux-dev feature to build the tests on non  unix systems
