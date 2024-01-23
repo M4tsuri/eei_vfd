@@ -1,15 +1,15 @@
- [package]
+[package]
 authors = ["M4tsuri <me@m4tsuri.com>"]
 categories = ["embedded", "hardware-support", "no-std"]
 description = "An embedded-hal based driver for VFD displays from EEI Tech"
 documentation = "https://docs.rs/eei_vfd"
-homepage = "https://github.com/caemor/eei_vfd"
+homepage = "https://github.com/M4tsuri/eei_vfd"
 keywords = ["VFD", "Display"]
-license = "ISC"
+license = "MIT"
 name = "eei_vfd"
 readme = "README.md"
 repository = "https://github.com/M4tsuri/eei_vfd"
-version = "0.0.1"
+version = "0.1.0"
 edition = "2021"
 
 [dependencies]
